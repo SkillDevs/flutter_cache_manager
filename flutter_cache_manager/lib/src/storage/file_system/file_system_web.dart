@@ -9,4 +9,12 @@ class MemoryCacheSystem implements FileSystem {
   Future<File> createFile(String name) async {
     return (await directory).childFile(name);
   }
+
+  @override
+  Future<void> deleteCacheDir() async {
+    final dir = await directory;
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  }
 }
