@@ -30,4 +30,9 @@ class MemoryCacheSystem implements FileSystem {
       await dir.delete(recursive: true);
     }
   }
+
+  @override
+  Future<void> deleteDanglingCache() {
+    throw UnimplementedError();
+  }
 }

@@ -10,4 +10,6 @@ abstract class FileSystem {
 
   /// Deletes the directory that contains all the cached filed in the current context.
   Future<void> deleteCacheDir();
+
+  Future<void> deleteDanglingCache();
 }

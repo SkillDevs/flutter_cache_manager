@@ -40,7 +40,22 @@ class IOFileSystem implements FileSystem {
       // It can take a while to delete the directory, so we rename it first
       // and let it delete in the background.
       final dirToDelete = await directory.rename('${directory.path}.remove');
-      
+
+      unawaited(compute((_) async {
+        // print("Deleting cache dir: $dirToDelete");
+        await dirToDelete.delete(recursive: true);
+      }, null));
+    }
+  }
+
+  @override
+  Future<void> deleteDanglingCache() async {
+    final directory = await _fileDir;
+
+    const fs = LocalFileSystem();
+    final dirToDelete = fs.directory('${directory.path}.remove');
+
+    if (await dirToDelete.exists()) {
       unawaited(compute((_) async {
         // print("Deleting cache dir: $dirToDelete");
         await dirToDelete.delete(recursive: true);

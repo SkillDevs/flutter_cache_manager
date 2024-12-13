@@ -33,4 +33,9 @@ class TestFileSystem extends FileSystem {
       await dir.delete(recursive: true);
     }
   }
+
+  @override
+  Future<void> deleteDanglingCache() {
+    throw UnimplementedError();
+  }
 }

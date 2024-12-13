@@ -133,6 +133,7 @@ class CacheStore {
   }
 
   Future<void> _cleanupCache() async {
+    // print("DEBUG: Cleaning up cache $storeKey");
     final toRemove = <int>[];
     final provider = await _cacheInfoRepository;
 
@@ -147,6 +148,9 @@ class CacheStore {
     }
 
     await provider.deleteAll(toRemove);
+
+    // explicitly unawaited to avoid blocking the cleanup
+    fileSystem.deleteDanglingCache();
   }
 
   Future<void> emptyCache() async {
