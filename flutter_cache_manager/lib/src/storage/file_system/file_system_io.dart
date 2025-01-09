@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file/file.dart' hide FileSystem;
 import 'package:file/local.dart';
@@ -39,11 +40,15 @@ class IOFileSystem implements FileSystem {
     if (await directory.exists()) {
       // It can take a while to delete the directory, so we rename it first
       // and let it delete in the background.
-      final dirToDelete = await directory.rename('${directory.path}.remove');
 
       unawaited(compute((_) async {
-        // print("Deleting cache dir: $dirToDelete");
-        await dirToDelete.delete(recursive: true);
+        try {
+          final dirToDelete =
+              await directory.rename('${directory.path}.remove');
+          await dirToDelete.delete(recursive: true);
+        } on PathNotFoundException catch (e) {
+          // Avoid race conditions where the file might already be deleted by the OS
+        }
       }, null));
     }
   }

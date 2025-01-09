@@ -27,7 +27,11 @@ class MemoryCacheSystem implements FileSystem {
   Future<void> deleteCacheDir() async {
     final dir = await _fileDir;
     if (await dir.exists()) {
-      await dir.delete(recursive: true);
+      try {
+        await dir.delete(recursive: true);
+      } catch (e) {
+        // ignore
+      }
     }
   }
 
