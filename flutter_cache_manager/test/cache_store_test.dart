@@ -419,6 +419,26 @@ void main() {
 
       verify(config.mockRepo
           .deleteAll(argThat(containsAll([co1.id, co2.id, co3.id])))).called(1);
+
+      // Add a dangling file to the cache
+      await config.returnsFile('dangling-file.png');
+      await store.emptyCache();
+
+      // Directories that were marked for deletion
+      final pendingDelete = (await store.fileSystem.createFile('sample'))
+          .parent
+          .parent
+          .listSync()
+          .where((e) => e.path.endsWith('.remove'));
+
+      expect(pendingDelete.length, 2);
+      await store.fileSystem.deleteDanglingCache();
+
+      // make sure that all cached files in the filesystem are deleted after delete dangling is called
+      for (var dir in pendingDelete) {
+        expect(await dir.exists(), isFalse,
+            reason: 'pending delete dir exists: $dir');
+      }
     });
 
     test('Store should delete file when remove cached file', () async {
