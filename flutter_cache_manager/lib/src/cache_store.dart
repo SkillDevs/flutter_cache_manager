@@ -173,7 +173,7 @@ class CacheStore {
     await provider.deleteAll(toRemove);
 
     // explicitly unawaited to avoid blocking the cleanup
-    fileSystem.deleteDanglingCache();
+    fileSystem.deleteDanglingDeletedCacheDirs();
   }
 
   Future<void> emptyCache() async {

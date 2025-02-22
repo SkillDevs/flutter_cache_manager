@@ -9,7 +9,10 @@ abstract class FileSystem {
   Future<File> createFile(String name);
 
   /// Deletes the directory that contains all the cached filed in the current context.
+  /// Big directories might take a while to delete, so they are marked for deletion renaming them first.
+  /// This method should return quickly, but the original directory will be deleted in the background.
   Future<void> deleteCacheDir();
 
-  Future<void> deleteDanglingCache();
+  /// Delete any directories that have been marked for deletion
+  Future<void> deleteDanglingDeletedCacheDirs();
 }

@@ -36,7 +36,7 @@ class MemoryCacheSystem implements FileSystem {
   }
 
   @override
-  Future<void> deleteDanglingCache() {
+  Future<void> deleteDanglingDeletedCacheDirs() {
     throw UnimplementedError();
   }
 }

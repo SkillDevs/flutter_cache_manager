@@ -469,7 +469,7 @@ void main() {
           .where((e) => e.path.endsWith('.remove'));
 
       expect(pendingDelete.length, 2);
-      await store.fileSystem.deleteDanglingCache();
+      await store.fileSystem.deleteDanglingDeletedCacheDirs();
 
       // make sure that all cached files in the filesystem are deleted after delete dangling is called
       for (var dir in pendingDelete) {

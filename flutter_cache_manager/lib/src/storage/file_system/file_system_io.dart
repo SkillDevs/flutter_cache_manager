@@ -85,7 +85,7 @@ class IOFileSystem implements FileSystem {
   }
 
   @override
-  Future<void> deleteDanglingCache() async {
+  Future<void> deleteDanglingDeletedCacheDirs() async {
     final directory = await _fileDir;
 
     final dirsToDelete = await directory.parent
