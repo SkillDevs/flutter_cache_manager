@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_cache_manager/src/storage/file_system/util.dart';
 
 ///Flutter Cache Manager
 ///Copyright (c) 2019 Rene Floor

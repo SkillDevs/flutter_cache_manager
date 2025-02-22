@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show PathNotFoundException;
 
 import 'package:file/file.dart' hide FileSystem;
 import 'package:file/local.dart';
