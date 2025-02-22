@@ -203,6 +203,43 @@ void main() {
     });
   });
 
+  test('failed cache repository intialization cleans up', () async {
+    final config = createTestConfig();
+
+    // Create 1 file in the cache dir
+    final sampleFile = await config.returnsFile('existing-file-in-cache.png');
+    final cacheDir = sampleFile.parent;
+
+    // Fail the first time the repo is opened
+    final mockRepo = (config.repo as MockCacheInfoRepository);
+    bool shouldFail = true;
+    when(mockRepo.open()).thenAnswer((_) {
+      if (shouldFail) {
+        shouldFail = false;
+        return Future.error(Exception());
+      } else {
+        return Future.value(true);
+      }
+    });
+
+    // 1 file in the cache dir before initializing
+    expect(cacheDir.listSync().length, 1);
+
+    final store = CacheStore(config);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    verify(mockRepo.deleteDataFile()).called(1);
+    expect(cacheDir.existsSync(), false);
+
+    // Can interact with the store
+    var cacheObject = CacheObject(
+      'baseflow.com/test.png',
+      relativePath: 'testimage.png',
+      validTill: clock.now().add(const Duration(days: 7)),
+    );
+    await store.putFile(cacheObject);
+  });
+
   group('Removing files in store', () {
     test('Store should remove fileinfo from repo on delete', () async {
       var validTill = DateTime.now();
