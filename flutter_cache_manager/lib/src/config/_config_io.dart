@@ -14,7 +14,7 @@ class Config implements def.Config {
   })  : stalePeriod = stalePeriod ?? const Duration(days: 30),
         maxNrOfCacheObjects = maxNrOfCacheObjects ?? 200,
         repo = repo ?? _createRepo(cacheKey),
-        fileSystem = fileSystem ?? IOFileSystem(cacheKey),
+        fileSystem = fileSystem ?? IOFileSystem.fromCacheKey(cacheKey),
         fileService = fileService ?? HttpFileService();
 
   @override

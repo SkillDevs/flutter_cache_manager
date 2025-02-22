@@ -1,4 +1,3 @@
-import 'package:file/file.dart' show File;
 import 'package:file/memory.dart';
 import 'package:flutter_cache_manager/src/config/config.dart';
 import 'package:flutter_cache_manager/src/storage/file_system/file_system.dart';
@@ -9,33 +8,14 @@ import 'mock_file_service.dart';
 Config createTestConfig() {
   return Config(
     'test',
-    fileSystem: TestFileSystem(),
+    fileSystem: createTestFileSystem(),
     repo: MockCacheInfoRepository(),
     fileService: MockFileService(),
   );
 }
 
-class TestFileSystem extends FileSystem {
-  final directoryFuture =
-      MemoryFileSystem().systemTempDirectory.createTemp('test');
-
-  @override
-  Future<File> createFile(String name) async {
-    var dir = await directoryFuture;
-    await dir.create(recursive: true);
-    return dir.childFile(name);
-  }
-
-  @override
-  Future<void> deleteCacheDir() async {
-    var dir = await directoryFuture;
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
-    }
-  }
-
-  @override
-  Future<void> deleteDanglingCache() {
-    throw UnimplementedError();
-  }
-}
+IOFileSystem createTestFileSystem() => IOFileSystem(
+      Future.value(MemoryFileSystem().systemTempDirectory.createTemp('test')),
+      // Memory file system, so we cannot use isolates, as they don't share memory
+      useIsolates: false,
+    );

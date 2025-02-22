@@ -1,34 +1,43 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' show PathNotFoundException;
+import 'dart:isolate';
 
 import 'package:file/file.dart' hide FileSystem;
 import 'package:file/local.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/src/storage/file_system/file_system.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class IOFileSystem implements FileSystem {
   final Future<Directory> _fileDir;
-  final String _cacheKey;
+  final bool _useIsolates;
 
-  IOFileSystem(this._cacheKey) : _fileDir = createDirectory(_cacheKey);
+  IOFileSystem(Future<Directory> dir, {bool useIsolates = true})
+      : _useIsolates = useIsolates,
+        _fileDir = dir.then((value) => _createDir(value));
 
-  static Future<Directory> createDirectory(String key) async {
+  factory IOFileSystem.fromCacheKey(String cacheKey) =>
+      IOFileSystem(_getDirFoCacherKey(cacheKey));
+
+  static Future<Directory> _getDirFoCacherKey(String key) async {
     final baseDir = await getTemporaryDirectory();
     final path = p.join(baseDir.path, key);
 
     const fs = LocalFileSystem();
     final directory = fs.directory(path);
-    await directory.create(recursive: true);
     return directory;
+  }
+
+  static Future<Directory> _createDir(Directory d) async {
+    await d.create(recursive: true);
+    return d;
   }
 
   @override
   Future<File> createFile(String name) async {
     final directory = await _fileDir;
     if (!(await directory.exists())) {
-      await createDirectory(_cacheKey);
+      await _createDir(directory);
     }
     return directory.childFile(name);
   }
@@ -38,18 +47,19 @@ class IOFileSystem implements FileSystem {
     final directory = await _fileDir;
 
     if (await directory.exists()) {
-      // It can take a while to delete the directory, so we rename it first
-      // and let it delete in the background.
-
-      unawaited(compute((_) async {
+      Future<void> handleDelete() async {
         try {
           final dirToDelete =
               await directory.rename('${directory.path}.remove');
           await dirToDelete.delete(recursive: true);
-        } on PathNotFoundException catch (e) {
+        } on PathNotFoundException catch (_) {
           // Avoid race conditions where the file might already be deleted by the OS
         }
-      }, null));
+      }
+
+      // It can take a while to delete the directory, so we rename it first
+      // and let it delete in the background.
+      unawaited(_useIsolates ? Isolate.run(handleDelete) : handleDelete());
     }
   }
 
@@ -61,10 +71,16 @@ class IOFileSystem implements FileSystem {
     final dirToDelete = fs.directory('${directory.path}.remove');
 
     if (await dirToDelete.exists()) {
-      unawaited(compute((_) async {
-        // print("Deleting cache dir: $dirToDelete");
-        await dirToDelete.delete(recursive: true);
-      }, null));
+      Future<void> handleDelete() async {
+        try {
+          // print("Deleting cache dir: $dirToDelete");
+          await dirToDelete.delete(recursive: true);
+        } on PathNotFoundException catch (_) {
+          // Avoid race conditions where the file might already be deleted by the OS
+        }
+      }
+
+      unawaited(_useIsolates ? Isolate.run(handleDelete) : handleDelete());
     }
   }
 }

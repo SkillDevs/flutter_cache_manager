@@ -414,7 +414,7 @@ void main() {
 
       // make sure that all cached files in the filesystem are deleted
       for (var cacheFile in cacheFiles) {
-        expect(await cacheFile.exists(), isFalse);
+        expect(await cacheFile.exists(), isFalse, reason: '$cacheFile exists');
       }
 
       verify(config.mockRepo
