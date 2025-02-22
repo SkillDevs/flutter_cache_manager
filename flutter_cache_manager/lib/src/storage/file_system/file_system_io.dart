@@ -4,6 +4,7 @@ import 'dart:io' show PathNotFoundException;
 import 'package:file/file.dart' hide FileSystem;
 import 'package:file/local.dart';
 import 'package:flutter_cache_manager/src/storage/file_system/file_system.dart';
+import 'package:flutter_cache_manager/src/storage/file_system/util.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -60,7 +61,7 @@ class IOFileSystem implements FileSystem {
         dirToDelete = await directory.rename(dirToDeletePath);
       } on FileSystemException catch (e) {
         // Avoid race conditions where the file might already be deleted by the OS
-        if (!_isPathNotFound(e)) {
+        if (!isPathNotFoundException(e)) {
           rethrow;
         }
       }
@@ -74,7 +75,7 @@ class IOFileSystem implements FileSystem {
             await dirToDelete?.delete(recursive: true);
           } on FileSystemException catch (e) {
             // Avoid race conditions where the file might already be deleted by the OS
-            if (!_isPathNotFound(e)) {
+            if (!isPathNotFoundException(e)) {
               rethrow;
             }
           }
@@ -105,7 +106,7 @@ class IOFileSystem implements FileSystem {
               await dirToDelete.delete(recursive: true);
             } on FileSystemException catch (e) {
               // Avoid race conditions where the file might already be deleted by the OS
-              if (!_isPathNotFound(e)) {
+              if (!isPathNotFoundException(e)) {
                 rethrow;
               }
             }
@@ -118,7 +119,4 @@ class IOFileSystem implements FileSystem {
   }
 }
 
-bool _isPathNotFound(FileSystemException e) {
-  return e is PathNotFoundException ||
-      e.osError?.errorCode == ErrorCodes.ENOENT;
-}
+

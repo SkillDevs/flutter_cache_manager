@@ -25,9 +25,21 @@ class CacheObjectProvider extends CacheInfoRepository
     if (!shouldOpenOnNewConnection()) {
       return openCompleter!.future;
     }
-    final path = await _getPath();
-    await File(path).parent.create(recursive: true);
-    db = await openDatabase(path, version: 3,
+
+    try {
+      final dbFile = File(await _getPath());
+      db = await _openDatabase(dbFile);
+      return opened();
+    } catch (_) {
+      shouldClose();
+      rethrow;
+    }
+  }
+
+  Future<Database> _openDatabase(File dbFile) async {
+    await dbFile.parent.create(recursive: true);
+
+    final db = await openDatabase(dbFile.path, version: 3,
         onCreate: (Database db, int version) async {
       await db.execute('''
       create table $_tableCacheObject (
@@ -83,7 +95,16 @@ class CacheObjectProvider extends CacheInfoRepository
         }
       }
     });
-    return opened();
+
+    try {
+      // Running this can eagerly detect db corruption on open
+      await db.rawQuery('SELECT * FROM sqlite_master');
+    } catch (e) {
+      await db.close();
+      rethrow;
+    }
+
+    return db;
   }
 
   @override

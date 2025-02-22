@@ -36,9 +36,14 @@ class JsonCacheInfoRepository extends CacheInfoRepository
     if (!shouldOpenOnNewConnection()) {
       return openCompleter!.future;
     }
-    final file = await _getFile();
-    await _readFile(file);
-    return opened();
+    try {
+      final file = await _getFile();
+      await _readFile(file);
+      return opened();
+    } catch (_) {
+      shouldClose();
+      rethrow;
+    }
   }
 
   @override
@@ -148,7 +153,7 @@ class JsonCacheInfoRepository extends CacheInfoRepository
           _jsonCache[cacheObject.id!] = map;
           _cacheObjects[cacheObject.key] = cacheObject;
         }
-      } on Object catch (e, stacktrace) {
+      } catch (e, stacktrace) {
         FlutterError.reportError(FlutterErrorDetails(
           exception: e,
           stack: stacktrace,

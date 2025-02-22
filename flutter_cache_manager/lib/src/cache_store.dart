@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_cache_manager/src/storage/file_system/util.dart';
 
 ///Flutter Cache Manager
 ///Copyright (c) 2019 Rene Floor
@@ -30,7 +31,29 @@ class CacheStore {
   CacheStore(Config config)
       : _config = config,
         fileSystem = config.fileSystem,
-        _cacheInfoRepository = config.repo.open().then((value) => config.repo);
+        _cacheInfoRepository = _getCacheInfoRepository(config);
+
+  static Future<CacheInfoRepository> _getCacheInfoRepository(
+    Config config,
+  ) async {
+    try {
+      await config.repo.open();
+      return config.repo;
+    } catch (e) {
+      cacheLogger.log(
+        'Error initializing repository, so cleaning up cache and trying again. Error: $e',
+        CacheManagerLogLevel.warning,
+      );
+
+      // Delete data file and cached files
+      await config.repo.deleteDataFile().catchError((e) => null);
+      await config.fileSystem.deleteCacheDir().catchError((e) => null);
+
+      // Try again after cleaning up
+      await config.repo.open();
+      return config.repo;
+    }
+  }
 
   Future<FileInfo?> getFile(String key, {bool ignoreMemCache = false}) async {
     final cacheObject =
