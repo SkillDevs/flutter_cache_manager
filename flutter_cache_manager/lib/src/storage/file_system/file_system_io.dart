@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show PathNotFoundException;
-import 'dart:isolate';
 
 import 'package:file/file.dart' hide FileSystem;
 import 'package:file/local.dart';
@@ -11,17 +10,14 @@ import 'package:uuid/uuid.dart';
 
 class IOFileSystem implements FileSystem {
   final Future<Directory> _fileDir;
-  final bool _useIsolates;
 
-  // Useful for testing, to mock slow deletes of big cache directories;
+  /// Useful for testing, to mock slow deletes of big cache directories;
   final Duration? _deleteDelay;
 
   IOFileSystem(
     Future<Directory> dir, {
-    bool useIsolates = true,
     Duration? deleteDelay,
-  })  : _useIsolates = useIsolates,
-        _deleteDelay = deleteDelay,
+  })  : _deleteDelay = deleteDelay,
         _fileDir = dir.then((value) => _createDir(value));
 
   factory IOFileSystem.fromCacheKey(String cacheKey) =>
@@ -70,7 +66,7 @@ class IOFileSystem implements FileSystem {
       }
 
       if (dirToDelete != null) {
-        unawaited(_handleInBg(() async {
+        unawaited(() async {
           try {
             if (_deleteDelay != null) {
               await Future.delayed(_deleteDelay!);
@@ -82,7 +78,7 @@ class IOFileSystem implements FileSystem {
               rethrow;
             }
           }
-        }));
+        }());
       }
     }
   }
@@ -97,34 +93,28 @@ class IOFileSystem implements FileSystem {
         .toList();
 
     if (dirsToDelete.isNotEmpty) {
-      await _handleInBg(() async {
-        final futures = <Future<void>>[];
-        for (final dirToDelete in dirsToDelete) {
-          futures.add(() async {
-            if (await dirToDelete.exists()) {
-              try {
-                // print("Deleting dangling cache dir: $dirToDelete");
-                if (_deleteDelay != null) {
-                  await Future.delayed(_deleteDelay!);
-                }
-                await dirToDelete.delete(recursive: true);
-              } on FileSystemException catch (e) {
-                // Avoid race conditions where the file might already be deleted by the OS
-                if (!_isPathNotFound(e)) {
-                  rethrow;
-                }
+      final futures = <Future<void>>[];
+      for (final dirToDelete in dirsToDelete) {
+        futures.add(() async {
+          if (await dirToDelete.exists()) {
+            try {
+              // print("Deleting dangling cache dir: $dirToDelete");
+              if (_deleteDelay != null) {
+                await Future.delayed(_deleteDelay!);
+              }
+              await dirToDelete.delete(recursive: true);
+            } on FileSystemException catch (e) {
+              // Avoid race conditions where the file might already be deleted by the OS
+              if (!_isPathNotFound(e)) {
+                rethrow;
               }
             }
-          }());
-        }
+          }
+        }());
+      }
 
-        await Future.wait(futures);
-      });
+      await Future.wait(futures);
     }
-  }
-
-  Future<void> _handleInBg(Future<void> Function() fn) async {
-    await (_useIsolates ? Isolate.run(fn) : fn());
   }
 }
 

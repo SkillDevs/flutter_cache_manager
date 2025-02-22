@@ -16,7 +16,5 @@ Config createTestConfig() {
 
 IOFileSystem createTestFileSystem() => IOFileSystem(
       Future.value(MemoryFileSystem().systemTempDirectory.createTemp('test')),
-      // Memory file system, so we cannot use isolates, as they don't share memory
-      useIsolates: false,
       deleteDelay: const Duration(milliseconds: 500),
     );
