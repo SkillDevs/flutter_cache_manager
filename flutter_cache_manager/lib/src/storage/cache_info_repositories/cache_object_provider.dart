@@ -203,7 +203,11 @@ class CacheObjectProvider extends CacheInfoRepository
 
   @override
   Future<void> deleteDataFile() async {
-    await _getPath();
+    final path = await _getPath();
+    final file = File(path);
+    if (await file.exists()) {
+      await deleteDatabase(path).catchError((_) => null);
+    }
   }
 
   @override
