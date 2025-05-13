@@ -102,6 +102,9 @@ class CacheObjectProvider extends CacheInfoRepository
       final check = await db.rawQuery('PRAGMA quick_check(1)');
       final isIntegral = check.length == 1 && check[0].values.first == "ok";
       if (!isIntegral) throw Exception("Database corrupted");
+
+      // Reading sqlite_master can also detect db corruption
+      await db.rawQuery('SELECT * FROM sqlite_master');
     } catch (e) {
       await db.close();
       rethrow;
