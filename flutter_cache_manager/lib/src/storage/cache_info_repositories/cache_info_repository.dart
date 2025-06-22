@@ -59,6 +59,14 @@ class CacheInfoRepositoryException {
     required this.error,
     required this.stackTrace,
   });
+
+  @override
+  String toString() {
+    final errorString = error.toString();
+
+    return 'CacheInfoRepositoryException: $errorString\n'
+        'Inner stack trace: $stackTrace';
+  }
 }
 
 extension MigrationExtension on CacheInfoRepository {
