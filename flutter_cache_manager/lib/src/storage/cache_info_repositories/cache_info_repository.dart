@@ -51,6 +51,16 @@ abstract class CacheInfoRepository {
   Future<void> deleteDataFile();
 }
 
+class CacheInfoRepositoryException {
+  final Object error;
+  final StackTrace stackTrace;
+
+  CacheInfoRepositoryException({
+    required this.error,
+    required this.stackTrace,
+  });
+}
+
 extension MigrationExtension on CacheInfoRepository {
   Future<void> migrateFrom(CacheInfoRepository previousRepository) async {
     if (!await previousRepository.exists()) return;

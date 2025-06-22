@@ -32,6 +32,7 @@ class CacheObjectProvider extends CacheInfoRepository
       return opened();
     } catch (_) {
       shouldClose();
+      db = null;
       rethrow;
     }
   }
@@ -105,6 +106,12 @@ class CacheObjectProvider extends CacheInfoRepository
 
       // Reading sqlite_master can also detect db corruption
       await db.rawQuery('SELECT * FROM sqlite_master');
+
+      {
+        // Dummy write transaction to ensure the database is writable
+        await db.execute("BEGIN IMMEDIATE");
+        await db.execute("ROLLBACK");
+      }
     } catch (e) {
       await db.close();
       rethrow;
@@ -125,17 +132,22 @@ class CacheObjectProvider extends CacheInfoRepository
   @override
   Future<CacheObject> insert(CacheObject cacheObject,
       {bool setTouchedToNow = true}) async {
-    final id = await db!.insert(
-      _tableCacheObject,
-      cacheObject.toMap(setTouchedToNow: setTouchedToNow),
+    final id = await _wrapDbAction(
+      (db) => db.insert(
+        _tableCacheObject,
+        cacheObject.toMap(setTouchedToNow: setTouchedToNow),
+      ),
     );
     return cacheObject.copyWith(id: id);
   }
 
   @override
   Future<CacheObject?> get(String key) async {
-    final List<Map<dynamic, dynamic>> maps = await db!.query(_tableCacheObject,
-        columns: null, where: '${CacheObject.columnKey} = ?', whereArgs: [key]);
+    final List<Map<dynamic, dynamic>> maps = await _wrapDbAction((db) => db
+        .query(_tableCacheObject,
+            columns: null,
+            where: '${CacheObject.columnKey} = ?',
+            whereArgs: [key]));
     if (maps.isNotEmpty) {
       return CacheObject.fromMap(maps.first.cast<String, dynamic>());
     }
@@ -144,56 +156,66 @@ class CacheObjectProvider extends CacheInfoRepository
 
   @override
   Future<int> delete(int id) {
-    return db!.delete(_tableCacheObject,
-        where: '${CacheObject.columnId} = ?', whereArgs: [id]);
+    return _wrapDbAction((db) => db.delete(_tableCacheObject,
+        where: '${CacheObject.columnId} = ?', whereArgs: [id]));
   }
 
   @override
   Future<int> deleteAll(Iterable<int> ids) {
-    return db!.delete(_tableCacheObject,
-        where: '${CacheObject.columnId} IN (${ids.join(',')})');
+    return _wrapDbAction((db) => db.delete(_tableCacheObject,
+        where: '${CacheObject.columnId} IN (${ids.join(',')})'));
   }
 
   @override
   Future<int> update(CacheObject cacheObject, {bool setTouchedToNow = true}) {
-    return db!.update(
-      _tableCacheObject,
-      cacheObject.toMap(setTouchedToNow: setTouchedToNow),
-      where: '${CacheObject.columnId} = ?',
-      whereArgs: [cacheObject.id],
+    return _wrapDbAction(
+      (db) => db.update(
+        _tableCacheObject,
+        cacheObject.toMap(setTouchedToNow: setTouchedToNow),
+        where: '${CacheObject.columnId} = ?',
+        whereArgs: [cacheObject.id],
+      ),
     );
   }
 
   @override
   Future<List<CacheObject>> getAllObjects() async {
     return CacheObject.fromMapList(
-      await db!.query(_tableCacheObject, columns: null),
+      await _wrapDbAction((db) => db.query(_tableCacheObject, columns: null)),
     );
   }
 
   @override
   Future<List<CacheObject>> getObjectsOverCapacity(int capacity) async {
-    return CacheObject.fromMapList(await db!.query(
-      _tableCacheObject,
-      columns: null,
-      orderBy: '${CacheObject.columnTouched} DESC',
-      where: '${CacheObject.columnTouched} < ?',
-      whereArgs: [
-        DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch
-      ],
-      limit: 100,
-      offset: capacity,
-    ));
+    return CacheObject.fromMapList(
+      await _wrapDbAction(
+        (db) => db.query(
+          _tableCacheObject,
+          columns: null,
+          orderBy: '${CacheObject.columnTouched} DESC',
+          where: '${CacheObject.columnTouched} < ?',
+          whereArgs: [
+            DateTime.now()
+                .subtract(const Duration(days: 1))
+                .millisecondsSinceEpoch
+          ],
+          limit: 100,
+          offset: capacity,
+        ),
+      ),
+    );
   }
 
   @override
   Future<List<CacheObject>> getOldObjects(Duration maxAge) async {
-    return CacheObject.fromMapList(await db!.query(
-      _tableCacheObject,
-      where: '${CacheObject.columnTouched} < ?',
-      columns: null,
-      whereArgs: [DateTime.now().subtract(maxAge).millisecondsSinceEpoch],
-      limit: 100,
+    return CacheObject.fromMapList(await _wrapDbAction(
+      (db) => db.query(
+        _tableCacheObject,
+        where: '${CacheObject.columnTouched} < ?',
+        columns: null,
+        whereArgs: [DateTime.now().subtract(maxAge).millisecondsSinceEpoch],
+        limit: 100,
+      ),
     ));
   }
 
@@ -201,6 +223,7 @@ class CacheObjectProvider extends CacheInfoRepository
   Future<bool> close() async {
     if (!shouldClose()) return false;
     await db!.close();
+    db = null;
     return true;
   }
 
@@ -245,4 +268,17 @@ class CacheObjectProvider extends CacheInfoRepository
       }
     }
   }
+
+  Future<T> _wrapDbAction<T>(Future<T> Function(Database db) action) async {
+    if (db == null) {
+      throw CacheInfoRepositoryException(
+          error: 'Database is not open', stackTrace: StackTrace.current);
+    }
+    try {
+      return await action(db!);
+    } catch (e, stackTrace) {
+      throw CacheInfoRepositoryException(error: e, stackTrace: stackTrace);
+    }
+  }
 }
+
