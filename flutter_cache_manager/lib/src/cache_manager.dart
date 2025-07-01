@@ -293,4 +293,9 @@ class CacheManager implements BaseCacheManager {
   Future<void> dispose() async {
     await _config.repo.close();
   }
+  
+  @override
+  Future<void> deleteDataFile() async {
+    return await _config.repo.deleteDataFile();
+  }
 }

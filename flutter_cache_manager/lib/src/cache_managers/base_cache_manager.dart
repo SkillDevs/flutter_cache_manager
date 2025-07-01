@@ -7,6 +7,8 @@ import 'package:flutter_cache_manager/src/result/file_response.dart';
 /// Interface of the CacheManager. In general [CacheManager] can be used
 /// directly.
 abstract class BaseCacheManager {
+  Future<void> deleteDataFile();
+
   /// Get the file from the cache and/or online, depending on availability and age.
   /// Downloaded form [url], [headers] can be used for example for authentication.
   /// When a file is cached it is return directly, when it is too old the file is
