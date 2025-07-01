@@ -8,6 +8,8 @@ abstract class CacheInfoRepository {
   /// Returns whether or not there is an existing data file with cache info.
   Future<bool> exists();
 
+  bool isOpen();
+
   /// Opens the repository, or just returns true if the repo is already open.
   Future<bool> open();
 

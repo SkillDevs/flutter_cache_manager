@@ -21,6 +21,11 @@ class CacheObjectProvider extends CacheInfoRepository
   CacheObjectProvider({String? path, this.databaseName}) : _path = path;
 
   @override
+  bool isOpen() {
+    return hasOpened;
+  }
+
+  @override
   Future<bool> open() async {
     if (!shouldOpenOnNewConnection()) {
       return openCompleter!.future;
@@ -37,7 +42,7 @@ class CacheObjectProvider extends CacheInfoRepository
     }
   }
 
-  Future<Database> _openDatabase(File dbFile) async {
+  static Future<Database> _openDatabase(File dbFile) async {
     await dbFile.parent.create(recursive: true);
 
     final db = await openDatabase(dbFile.path, version: 3,
@@ -222,7 +227,7 @@ class CacheObjectProvider extends CacheInfoRepository
   @override
   Future<bool> close() async {
     if (!shouldClose()) return false;
-    await db!.close();
+    await db?.close();
     db = null;
     return true;
   }
@@ -277,8 +282,10 @@ class CacheObjectProvider extends CacheInfoRepository
     try {
       return await action(db!);
     } catch (e, stackTrace) {
+      // If we encounter an error with the database, close it so that the next attempt can open it
+      await close().catchError((_) => true);
+      
       throw CacheInfoRepositoryException(error: e, stackTrace: stackTrace);
     }
   }
 }
-

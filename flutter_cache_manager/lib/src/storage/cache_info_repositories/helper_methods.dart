@@ -3,25 +3,32 @@ import 'dart:async';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 mixin CacheInfoRepositoryHelperMethods on CacheInfoRepository {
-  int openConnections = 0;
   Completer<bool>? openCompleter;
+  bool hasOpened = false;
 
   bool shouldOpenOnNewConnection() {
-    openConnections++;
-    openCompleter ??= Completer<bool>();
-    return openConnections == 1;
+    if (openCompleter == null) {
+      // print("CacheInfoRepositoryHelperMethods: Creating new completer");
+      openCompleter = Completer<bool>();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   bool opened() {
     openCompleter!.complete(true);
+    hasOpened = true;
     return true;
   }
 
   bool shouldClose() {
-    openConnections--;
-    if (openConnections == 0) {
-      openCompleter = null;
+    hasOpened = false;
+    if (openCompleter != null && !openCompleter!.isCompleted) {
+      openCompleter?.completeError(Exception('CacheInfoRepository closed while opening'));
     }
-    return openConnections == 0;
+    openCompleter = null;
+
+    return true;
   }
 }

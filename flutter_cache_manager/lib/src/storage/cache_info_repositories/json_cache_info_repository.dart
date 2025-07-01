@@ -31,6 +31,12 @@ class JsonCacheInfoRepository extends CacheInfoRepository
   final Map<String, CacheObject> _cacheObjects = {};
   final Map<int, Map<String, dynamic>> _jsonCache = {};
 
+  
+  @override
+  bool isOpen() {
+    return hasOpened;
+  }
+
   @override
   Future<bool> open() async {
     if (!shouldOpenOnNewConnection()) {

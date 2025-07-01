@@ -18,7 +18,7 @@ class CacheStore {
   final Config _config;
 
   String get storeKey => _config.cacheKey;
-  final Future<CacheInfoRepository> _cacheInfoRepository;
+  final Future<CacheInfoRepository> Function() _cacheInfoRepository;
 
   int get _capacity => _config.maxNrOfCacheObjects;
 
@@ -32,26 +32,35 @@ class CacheStore {
         fileSystem = config.fileSystem,
         _cacheInfoRepository = _getCacheInfoRepository(config);
 
-  static Future<CacheInfoRepository> _getCacheInfoRepository(
+  static Future<CacheInfoRepository> Function() _getCacheInfoRepository(
     Config config,
-  ) async {
-    try {
-      await config.repo.open();
-      return config.repo;
-    } catch (e) {
-      cacheLogger.log(
-        'Error initializing repository, so cleaning up cache and trying again. Error: $e',
-        CacheManagerLogLevel.warning,
-      );
+  ) {
+    return () async {
+      if (config.repo.isOpen()) {
+        // print("CacheStore ${config.cacheKey}: Repository is already open, returning it.");
+        return config.repo;
+      }
 
-      // Delete data file and cached files
-      await config.repo.deleteDataFile().catchError((e) => null);
-      await config.fileSystem.deleteCacheDir().catchError((e) => null);
+      try {
+        await config.repo.open();
+        return config.repo;
+      } catch (e) {
+        await config.repo.close().catchError((e) => false);
 
-      // Try again after cleaning up
-      await config.repo.open();
-      return config.repo;
-    }
+        cacheLogger.log(
+          'Error initializing repository, so cleaning up cache and trying again. Error: $e',
+          CacheManagerLogLevel.warning,
+        );
+
+        // Delete data file and cached files
+        await config.repo.deleteDataFile().catchError((e) => null);
+        await config.fileSystem.deleteCacheDir().catchError((e) => null);
+
+        // Try again after cleaning up
+        await config.repo.open();
+        return config.repo;
+      }
+    };
   }
 
   Future<FileInfo?> getFile(String key, {bool ignoreMemCache = false}) async {
@@ -93,7 +102,7 @@ class CacheStore {
       final completer = Completer<CacheObject?>();
       _getCacheDataFromDatabase(key).then((cacheObject) async {
         if (cacheObject?.id != null && !await _fileExists(cacheObject)) {
-          final provider = await _cacheInfoRepository;
+          final provider = await _cacheInfoRepository();
           await provider.delete(cacheObject!.id!);
           cacheObject = null;
         }
@@ -130,7 +139,7 @@ class CacheStore {
   }
 
   Future<CacheObject?> _getCacheDataFromDatabase(String key) async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     final data = await provider.get(key);
     if (await _fileExists(data)) {
       _updateCacheDataInDatabase(data!);
@@ -150,14 +159,14 @@ class CacheStore {
   }
 
   Future<dynamic> _updateCacheDataInDatabase(CacheObject cacheObject) async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     return provider.updateOrInsert(cacheObject);
   }
 
   Future<void> _cleanupCache() async {
     // print("DEBUG: Cleaning up cache $storeKey");
     final toRemove = <int>[];
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
 
     final overCapacity = await provider.getObjectsOverCapacity(_capacity);
     for (final cacheObject in overCapacity) {
@@ -176,7 +185,7 @@ class CacheStore {
   }
 
   Future<void> emptyCache() async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     final allObjects = await provider.getAllObjects();
 
     // Remove the cache files from the filesystem
@@ -198,7 +207,7 @@ class CacheStore {
   }
 
   Future<void> removeCachedFile(CacheObject cacheObject) async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     final toRemove = <int>[];
     await _removeCachedFile(cacheObject, toRemove);
     await provider.deleteAll(toRemove);
@@ -244,12 +253,12 @@ class CacheStore {
   }
 
   Future<void> dispose() async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     await provider.close();
   }
 
   Future<int> getCacheSize() async {
-    final provider = await _cacheInfoRepository;
+    final provider = await _cacheInfoRepository();
     final allObjects = await provider.getAllObjects();
     int total = 0;
     for (var cacheObject in allObjects) {

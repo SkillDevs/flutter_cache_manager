@@ -8,6 +8,11 @@ class NonStoringObjectProvider implements CacheInfoRepository {
   }
 
   @override
+  bool isOpen() {
+    return true;
+  }
+
+  @override
   Future<int> delete(int id) {
     return Future.value(1);
   }
