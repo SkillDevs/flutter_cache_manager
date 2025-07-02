@@ -31,8 +31,8 @@ class CacheObjectProvider extends CacheInfoRepository
       db = await _openDatabase(dbFile);
       return opened();
     } catch (_) {
-      shouldClose();
       db = null;
+      shouldClose();
       rethrow;
     }
   }
@@ -107,11 +107,8 @@ class CacheObjectProvider extends CacheInfoRepository
       // Reading sqlite_master can also detect db corruption
       await db.rawQuery('SELECT * FROM sqlite_master');
 
-      {
-        // Dummy write transaction to ensure the database is writable
-        await db.execute("BEGIN IMMEDIATE");
-        await db.execute("ROLLBACK");
-      }
+      // Dummy write transaction to ensure the database is writable
+      await db.transaction((tx) async {});
     } catch (e) {
       await db.close();
       rethrow;
