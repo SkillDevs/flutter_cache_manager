@@ -31,7 +31,6 @@ class JsonCacheInfoRepository extends CacheInfoRepository
   final Map<String, CacheObject> _cacheObjects = {};
   final Map<int, Map<String, dynamic>> _jsonCache = {};
 
-  
   @override
   bool isOpen() {
     return hasOpened;
@@ -149,26 +148,14 @@ class JsonCacheInfoRepository extends CacheInfoRepository
     _cacheObjects.clear();
     _jsonCache.clear();
     if (await file.exists()) {
-      try {
-        final jsonString = await file.readAsString();
-        final json = jsonDecode(jsonString) as List<dynamic>;
-        for (final element in json) {
-          if (element is! Map<String, dynamic>) continue;
-          final map = element;
-          final cacheObject = CacheObject.fromMap(map);
-          _jsonCache[cacheObject.id!] = map;
-          _cacheObjects[cacheObject.key] = cacheObject;
-        }
-      } catch (e, stacktrace) {
-        FlutterError.reportError(FlutterErrorDetails(
-          exception: e,
-          stack: stacktrace,
-          library: 'flutter cache manager',
-          context: ErrorDescription(
-            'Thrown when reading the file containing cache info. '
-            'The cached files cannot be used by the cache manager anymore.',
-          ),
-        ));
+      final jsonString = await file.readAsString();
+      final json = jsonDecode(jsonString) as List<dynamic>;
+      for (final element in json) {
+        if (element is! Map<String, dynamic>) continue;
+        final map = element;
+        final cacheObject = CacheObject.fromMap(map);
+        _jsonCache[cacheObject.id!] = map;
+        _cacheObjects[cacheObject.key] = cacheObject;
       }
     }
   }
